@@ -1,0 +1,503 @@
+<!doctype html>
+
+<html lang='en'>
+
+<head>
+  <meta charset='utf-8'>
+  <title>Asia's Rice Bowl</title>
+  <style>
+    @font-face {
+      font-family: 'Curator Bold';
+      src: url(fonts/Curator-Bold.otf);
+    }
+
+    @font-face {
+      font-family: 'Curator Regular';
+      src: url(fonts/Curator-Regular.otf);
+    }
+
+    .container {
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    section.intro {
+      width: 750px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    section.intro h1 {
+      font-family: 'Curator Bold';
+      font-size: 21px;
+      color: #333
+    }
+
+    section.intro .desc {
+      font-family: 'Curator Regular';
+      font-size: 16px;
+      line-height: 21px;
+      color: #333
+    }
+
+    section.chart {
+      margin-top: 20px;
+      font-family: 'Curator Regular';
+      font-size: 13px;
+      color: #333;
+      width: 100%;
+      max-width: 750px;
+      display: flex;
+      flex-direction: row;
+    }
+
+    section.chart #line-chart {
+      width: 83%;
+    }
+
+    .filter {
+      font-family: 'Curator Bold';
+      font-size: 13px;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      height: 500px;
+    }
+
+    .filter .legend {
+      display: inline-block;
+      border-top: 3px solid;
+      margin: 0 5px;
+      width: 15px;
+      height: 5px;
+    }
+
+    .filter button {
+      font-family: 'Curator Bold';
+      font-size: 13px;
+      border: 0px;
+      background: #fff;
+      cursor: pointer;
+      padding: 0px;
+    }
+
+
+    .filter button.disabled {
+      opacity: 0.5;
+    }
+
+
+    .filter #india-container .legend {
+      border-color: #FABE9C;
+    }
+
+    .filter #thailand-container .legend {
+      border-color: #F6AB9A;
+    }
+
+    .filter #vietnam-container .legend {
+      border-color: #FED47D;
+    }
+
+    .filter .desc {
+      font-style: italic;
+      margin-bottom: 15px;
+    }
+
+    .filter div {
+      padding-bottom: 10px;
+    }
+
+    .domain {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class='container'>
+    <section class='intro'>
+      <h1>Asia's rice bowl</h1>
+      <div class='desc'>Nearly a decade after a spike in global food prices sent shockwaves around the world.
+        Asia's top rice producers are suffering from a blistering drought that threatens to cut output and boost prices
+        of a stable for half the world's population</div>
+    </section>
+    <section class='chart'>
+      <div id='line-chart'>
+        <svg></svg>
+      </div>
+      <div class='filter'>
+        <div class='desc'>Click to hide/show</div>
+        <div id='india-container'>
+          <button id="india-button" type="button" onclick='draw("India")'>
+            <span class="legend"></span>
+            India
+          </button>
+        </div>
+        <div class='country-val' id='india-val'></div>
+        <div id='thailand-container'>
+          <button id="thailand-button" type="button" onclick='draw("Thailand")'>
+            <span class="legend"></span>
+            Thailand
+          </button>
+        </div>
+        <div class='country-val' id='thailand-val'></div>
+        <div id='vietnam-container'>
+          <button id="vietnam-button" type="button" onclick='draw("Vietnam")'>
+            <span class="legend"></span>
+            Vietnam
+          </button>
+        </div>
+        <div class='country-val' id='vietnam-val'></div>
+      </div>
+    </section>
+  </div>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/d3/6.7.0/d3.min.js'
+    integrity='sha512-cd6CHE+XWDQ33ElJqsi0MdNte3S+bQY819f7p3NUHgwQQLXSKjE4cPZTeGNI+vaxZynk1wVU3hoHmow3m089wA=='
+    crossorigin='anonymous' referrerpolicy='no-referrer'></script>
+  <script>
+    //define list of constant variables
+    const margin = ({ top: 20, right: 30, bottom: 30, left: 40 })
+    const height = 400
+    const width = document.getElementById("line-chart").offsetWidth
+    const transDuration = 1200
+    const axisTickSize = 5
+    const chartTitle = 'Thousand metric tonnes'
+    const countrySettings = [{
+      name: 'India',
+      color: '#FABE9C',
+      show: true
+    }, {
+      name: 'Vietnam',
+      color: '#FED47D',
+      show: true
+    }, {
+      name: 'Thailand',
+      color: '#F6AB9A',
+      show: true
+    }]
+
+    // get countries where settings - show: true
+    const getCountriesToShow = () => {
+      return countrySettings.filter(country => country.show).map(country => country.name)
+    }
+
+    //get name for list of countries in an array: example: ['India', 'Vietnam', 'India']
+    const countries = countrySettings.map(country => country.name)
+
+    //create main canvas for chart
+    const svg = d3.select('.chart svg')
+      .attr('width', width)
+      .attr('height', height)
+
+    //define x axis settings
+    const x = d3.scaleTime()
+      .range([margin.left, width - margin.right])
+    const xAxis = d3.axisBottom(x).ticks(axisTickSize).tickSizeOuter(0)
+    svg.append('g')
+      .attr('transform', `translate(0,${height - margin.bottom})`)
+      .attr('class', 'xAxis')
+
+    //define y axis settings
+    const y = d3.scaleLinear()
+      .range([height - margin.bottom, margin.top])
+    const yAxis = g => g
+      .call(d3.axisLeft(y).ticks(axisTickSize).tickFormat(d => d.toLocaleString('en')))
+    svg.append('g')
+      .attr('class', 'yAxis')
+      .attr('transform', `translate(${margin.left},0)`)
+      .attr('stroke-width', `0px`)
+
+    //create a vertial line for data point when user click on the chart
+    const xAxisLine = svg
+      .append('g')
+      .append('rect')
+      .attr('class', 'dotted')
+      .attr('stroke-width', '1px')
+      .attr('height', height - margin.bottom);
+
+    //Create chart title
+    svg.append('g')
+      .append('text')
+      .attr('class', 'title')
+      .attr('x', 0)
+      .attr('y', 20)
+      .text(chartTitle)
+
+    //create tooltip canvas 
+    const tooltip = svg.append('g')
+
+    //append a rectangular object to tooltip canvas
+    tooltip.append('rect')
+      .attr('width', 150)
+      .attr('height', 130)
+      .attr('fill', '#fff')
+      .attr('stroke', '#000')
+      .attr('class', 'tooltip')
+
+    // add horizontal grid lines
+    svg.append('g')
+      .attr('class', 'grid')
+      .attr('stroke-opacity', 0.15)
+
+    //init path object for each country
+    countrySettings.forEach(country => {
+      svg.append('path')
+        .attr('fill', 'none')
+        .attr('stroke', country.color)
+        .attr('stroke-width', 2)
+        .attr('stroke-linejoin', 'round')
+        .attr('stroke-linecap', 'round')
+        .attr('class', `${country.name.toLowerCase()}-line`)
+        .attr('opacity', 0)
+    })
+
+    //function to draw/refresh the line chart
+    const draw = (selectedCountry) => {
+
+      //hide any tooltip if any
+      tooltip.attr('opacity', 0)
+      //hide data point vertical line if any
+      xAxisLine.attr('opacity', 0)
+      //hide circle data point if any
+      svg.selectAll('circle').remove()
+
+      //read data from tsv
+      d3.tsv('milledRiceEndingStocks.tsv').then(data => {
+
+        //format data
+        data.map(d => {
+          d.Year = new Date(d.Year, 0);
+          d.Vietnam = +d.Vietnam;
+          d.India = +d.India;
+          d.Thailand = +d.Thailand
+        })
+
+        //toggle country line path
+        if (selectedCountry) {
+          let country = countrySettings.find(country => country.name == selectedCountry)
+          country.show = !country.show
+          document.getElementById(`${selectedCountry.toLowerCase()}-button`).classList.toggle("disabled");
+          if (!country.show) {
+            document.getElementById(`${selectedCountry.toLowerCase()}-val`).innerHTML = ''
+          }
+        }
+
+        //after toggling, let's retrieve a list of countries to be shown
+        const countriesToShow = getCountriesToShow()
+
+        //let's generate the chart
+        chart(countriesToShow, data)
+      })
+    }
+
+    //function to update legend
+    //Based on countries to be shown, updated the value
+    const updateLegend = (countriesToShow, data) => {
+      let countryValDiv
+      countriesToShow.forEach(country => {
+        countryValDiv = document.getElementById(`${country.toLowerCase()}-val`)
+        if (countriesToShow.includes(country)) {
+          countryValDiv.style.display = 'block'
+          countryValDiv.innerHTML = data[country].toLocaleString('en', { minimumFractionDigits: 1 });
+        } else {
+          countryValDiv.style.display = 'none'
+        }
+      })
+    }
+
+    //function to update & show tooltip
+    //Based on countries to be shown, updated tooltip content
+    const updateTooltip = (countriesToShow, data, defaultPosition) => {
+      let defaultYPosition = 40
+
+      //show tooltip and adjust it position
+      tooltip.attr('opacity', 1)
+        .select('.tooltip')
+        .attr('x', defaultPosition.x + 10)
+        .attr('y', defaultPosition.y)
+        .attr('rx', 4)
+        .attr('ry', 4)
+        .attr('opacity', 1)
+
+      //construct tooltip title
+      tooltip.append('text')
+        .attr('font-family', 'Curator Bold')
+        .attr('x', defaultPosition.x + 20)
+        .attr('y', defaultPosition.y + 20)
+        .text(data.Year.getFullYear())
+
+      //construct tooltip content
+      countriesToShow.forEach(country => {
+        defaultYPosition = defaultYPosition + 20
+        if (countriesToShow.includes(country)) {
+          tooltip.append('text')
+            .attr('x', defaultPosition.x + 20)
+            .attr('y', defaultPosition.y + defaultYPosition)
+            .text(`${country}: ${data[country].toLocaleString('en', { minimumFractionDigits: 1 })}`)
+        }
+      })
+    }
+
+    //function to generate the line chart based on various parameters
+    const chart = (countriesToShow, data) => {
+
+      //create a temp data set 
+      const tempData = [...data]
+      let selectedCountryPath
+
+      //this is purely for animation purposes where we try to hide a line chart for a particular country
+      countries.forEach((country) => {
+        selectedCountryPath = svg.selectAll(`.${country.toLowerCase()}-line`)
+        if (!countriesToShow.includes(country) && selectedCountryPath.attr('opacity') == 1) {
+          tempData.map(d => d[country] = 0)
+          selectedCountryPath
+            .datum(tempData)
+            .transition()
+            .duration(transDuration)
+            .attr('opacity', 0)
+            .attr('d', d3.line()
+              .defined(d => !isNaN(d[country]))
+              .x(d => x(d.Year))
+              .y(d => y(d[country])))
+        }
+      })
+
+      let countryValues
+      //construct x axis for line chart
+      x.domain(d3.extent(data, d => d.Year))
+      svg.selectAll('.xAxis')
+        .call(xAxis);
+
+      //construct y axis for line chart
+      y.domain([0, d3.max(data, (d) => {
+        countryValues = []
+        countriesToShow.forEach(country => countryValues.push(d[country]))
+        return Math.max(...countryValues);
+      })]).nice()
+      svg.selectAll('.yAxis')
+        .transition()
+        .duration(transDuration)
+        .call(yAxis);
+
+      svg.selectAll('.grid')
+        .transition()
+        .duration(transDuration)
+        .call(d3.axisLeft(y).ticks(axisTickSize)
+          .tickSize(-width)
+          .tickFormat('')
+        )
+
+      //construct line chart for each country
+      countriesToShow.forEach(country => {
+        svg.selectAll(`.${country.toLowerCase()}-line`)
+          .datum(data)
+          .transition()
+          .duration(transDuration)
+          .attr('opacity', 1)
+          .attr('d', d3.line()
+            .defined(d => !isNaN(d[country]))
+            .x(d => x(d.Year))
+            .y(d => y(d[country])))
+      })
+
+      //when user click on the chart, we need to show the vertical line as well as the nearest data point
+      svg.on('click', (e) => {
+        //remove any existing elements:-
+        //remove tooltip
+        tooltip.attr('opacity', 0).selectAll('text').remove()
+        //remove data point
+        svg.selectAll('circle').remove()
+        //remove vertical x axis data point
+        xAxisLine.attr('opacity', 0)
+
+        //Clear all value in legend
+        const countryValList = document.getElementsByClassName('country-val')
+        for (let el of countryValList) {
+          el.innerHTML = ''
+        }
+
+        //get clicked mouse position
+        const mousePosition = d3.pointer(e)
+        //get nearest selected year based on mouse position
+        const filteredYear = x.invert(mousePosition[0]).getFullYear()
+        //filter data based on selected year
+        const filteredData = data.find(d => d.Year.getFullYear() === filteredYear)
+
+        // don't show anything if user clicked on an area not in the data range
+        if (typeof filteredData === 'undefined' || !countriesToShow.length) {
+          return
+        }
+
+        //generate vertical x axis line
+        xAxisLine
+          .attr('width', '.5px')
+          .attr('opacity', 1)
+          .attr('x', x(filteredData.Year));
+
+        //update legend
+        updateLegend(countriesToShow, filteredData)
+
+        let country
+        let name
+        let highest = {}
+        let currentX
+        let currentY
+        countriesToShow.forEach((country, index) => {
+          country = countrySettings.find(countrySetting => countrySetting.name === country)
+          name = country.name
+
+          //generate circlular data point and show it
+          svg.selectAll(`.${name}-circle`)
+            .data([filteredData])
+            .join('circle') // enter append
+            .style('fill', country.color)
+            .attr('class', `.${name}-circle`)
+            .attr('r', '5') // radius
+            .attr('cx', d => {
+              currentX = x(d.Year)
+              return currentX
+            })
+            .attr('cy', d => {
+              currentY = y(d[country.name])
+              return currentY
+            })
+
+          //get current selected highest Y position for showing tooltip in a reasonale area
+          if (Object.entries(highest).length === 0) {
+            highest.x = currentX
+            highest.y = currentY
+          } else if (highest.y > currentY) {
+            highest.x = currentX
+            highest.y = currentY
+          }
+
+          if (currentX > (width / 2)) {
+            highest.x = currentX - 170
+          }
+
+          if (currentY > (height / 2)) {
+            highest.y = currentY - 200
+          }
+
+        })
+
+        //construct tooltip 
+        updateTooltip(countriesToShow, filteredData, {
+          x: highest.x,
+          y: highest.y,
+        })
+      })
+    }
+
+    //init the chart
+    draw()
+
+  </script>
+</body>
+
+</html>
