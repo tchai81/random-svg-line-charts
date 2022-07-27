@@ -1,5 +1,5 @@
-# random-svg-line-charts
+# D3 Line Chart
 
-One of my favourite interview assignments - Line charts creation with D3.
+One of my favourite interview assignment - Line chart creation with D3.
 
 ![Screenshot](chart.png)
